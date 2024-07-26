@@ -1,0 +1,1183 @@
+---
+title: "Tendencias y contratendencias en las desigualdades en Argentina. 2003-2024."
+author: 
+  - name: "Eduardo Chávez Molina" 
+    affiliation: "IIGG (UBA) - UNMdP " 
+  - name: "José Rodríguez de la Fuente"
+    affiliation: "IIGG(UBA) - CONICET" 
+subtitle: "I Jornadas de Sociología - UNC"
+format: 
+  revealjs:
+    theme: [default, custom.scss]
+    highlight-style: espresso
+    smooth-scroll: true
+    embed-resources: false
+    width: 1280
+    height: 720
+    transition: fade
+from: markdown+emoji
+execute:
+  echo: false
+---
+
+```{r}
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE, 
+                      message = FALSE, cache.lazy = FALSE,
+                      dpi = 300)
+
+pacman::p_load(tidyverse, janitor, xlsx, Hmisc, sf, ggthemes, effectsize, ggsci,
+               gt, gtExtras, gghighlight)
+
+eph <- readRDS("bases/eph_0424.RDS")
+
+load("bases/engho.RData")
+```
+
+```{r results='hide'}
+
+# Arreglo variables eph----------------
+eph <- eph %>% 
+  mutate(sexo = factor(CH04, labels = c("Varón", "Mujer")),
+         region_f = factor(REGION, labels = c("GBA", "NOA", "NEA", "Cuyo", "Pampeana", "Patagonia")),
+         vivienda = case_when(II7 == 1 | II7 == 2 ~ 1,
+                              TRUE ~ 0),
+         ambiental = case_when(IV12_1 == 1 | IV12_2 == 1 | IV12_3 == 1 ~ 1,
+                               TRUE ~ 0),
+         calmat = case_when(IV3 == 1 & IV4 == 1 & IV5 == 1 ~ 1,
+                            IV3 == 1 & IV4 == 1 & IV5 == 2 ~ 2,
+                            IV3 == 1 & (IV4 >= 2 & IV4 <= 5) ~ 2,
+                            IV3 == 1 & (IV4 >= 6 & IV4 <= 7) ~ 3,
+                            IV3 == 2 & IV4 == 1 & IV5 == 1 ~ 2,
+                            IV3 == 2 & IV4 == 1 & IV5 == 2 ~ 2,
+                            IV3 == 2 & (IV4 >= 2 & IV4 <= 5) ~ 3,
+                            IV3 == 2 & (IV4 >= 6 & IV4 <= 7) ~ 3,
+                            IV3 == 3 & IV4 == 1 & IV5 == 1 ~ 3,
+                            IV3 == 3 & IV4 == 1 & IV5 == 2 ~ 3,
+                            IV3 == 3 & (IV4 >= 2 & IV4 <= 5) ~ 3,
+                            IV3 == 3 & (IV4 >= 6 & IV4 <= 7) ~ 3,
+                            TRUE ~ NA_real_ ),
+         calmat_dic = car::recode(calmat, "1:2=1; 3=0"),
+         incalserv = case_when(IV7 == 1 & IV11 == 1 ~ 1,
+                               TRUE ~ 0),
+         educ_superior = case_when((CH12 == 6 | CH12 == 7) & CH13 == 1 ~ 1,
+                                   CH12 == 8 ~ 1,
+                                   TRUE ~ 0),
+         educ_secundaria = case_when((CH12 == 4 | CH12 == 5) & CH13 == 1 ~ 1,
+                                     (CH12 >= 6 & CH12 <= 8) ~ 1,
+                                     TRUE ~ 0),
+         IX_MEN10 = ifelse(ANO4 == 2003 & is.na(IX_MEN10), 0, IX_MEN10),
+         no_lab = ifelse(T_VI < 0, 0, T_VI),
+         itf_ppa = case_when(ANO4	==	2003	~	ITF*	0.318	*	1.6963	,
+                              ANO4	==	2004	~	ITF*	0.344	*	1.6499	,
+                              ANO4	==	2005	~	ITF*	0.341	*	1.6236	,
+                              ANO4	==	2006	~	ITF*	0.327	*	1.6045	,
+                              ANO4	==	2007	~	ITF*	0.323	*	1.5633	,
+                              ANO4	==	2008	~	ITF*	0.317	*	1.4822	,
+                              ANO4	==	2009	~	ITF*	0.283	*	1.4963	,
+                              ANO4	==	2010	~	ITF*	0.260	*	1.4250	,
+                              ANO4	==	2011	~	ITF*	0.249	*	1.3350	,
+                              ANO4	==	2012	~	ITF*	0.230	*	1.3335	,
+                              ANO4	==	2013	~	ITF*	0.200	*	1.3495	,
+                              ANO4	==	2014	~	ITF*	0.133	*	1.3723	,
+                              ANO4	==	2015	~	ITF*	0.116	*	1.3126	,
+                              ANO4	==	2016	~	ITF*	0.069	*	1.3683	,
+                              ANO4	==	2017	~	ITF*	0.064	*	1.3786	,
+                              ANO4	==	2018	~	ITF*	0.051	*	1.5185	,
+                              ANO4	==	2019	~	ITF*	0.026	*	1.5766	,
+                              ANO4	==	2020	~	ITF*	0.016	*	1.6188	,
+                              ANO4	==	2021	~	ITF*	0.011	*	1.5917	,
+                              ANO4	==	2022	~	ITF*	0.009	*	1.5299	,
+                              ANO4	==	2023	~	ITF*	0.005	*	1.5324	
+                              ),
+         ipcf = ifelse(ANO4 == 2020, ITF/IX_TOT, IPCF),
+         ipcf_ppa = case_when(ANO4	==	2003	~	ipcf*	0.318	*	1.6963	,
+                              ANO4	==	2004	~	ipcf*	0.344	*	1.6499	,
+                              ANO4	==	2005	~	ipcf*	0.341	*	1.6236	,
+                              ANO4	==	2006	~	ipcf*	0.327	*	1.6045	,
+                              ANO4	==	2007	~	ipcf*	0.323	*	1.5633	,
+                              ANO4	==	2008	~	ipcf*	0.317	*	1.4822	,
+                              ANO4	==	2009	~	ipcf*	0.283	*	1.4963	,
+                              ANO4	==	2010	~	ipcf*	0.260	*	1.4250	,
+                              ANO4	==	2011	~	ipcf*	0.249	*	1.3350	,
+                              ANO4	==	2012	~	ipcf*	0.230	*	1.3335	,
+                              ANO4	==	2013	~	ipcf*	0.200	*	1.3495	,
+                              ANO4	==	2014	~	ipcf*	0.133	*	1.3723	,
+                              ANO4	==	2015	~	ipcf*	0.116	*	1.3126	,
+                              ANO4	==	2016	~	ipcf*	0.069	*	1.3683	,
+                              ANO4	==	2017	~	ipcf*	0.064	*	1.3786	,
+                              ANO4	==	2018	~	ipcf*	0.051	*	1.5185	,
+                              ANO4	==	2019	~	ipcf*	0.026	*	1.5766	,
+                              ANO4	==	2020	~	ipcf*	0.016	*	1.6188	,
+                              ANO4	==	2021	~	ipcf*	0.011	*	1.5917	,
+                              ANO4	==	2022	~	ipcf*	0.009	*	1.5299	,
+                              ANO4	==	2023	~	ipcf*	0.005	*	1.5324	
+                              )) %>% 
+  group_by(ANO4, TRIMESTRE, CODUSU, NRO_HOGAR) %>% 
+  mutate(ing_nolab_tot = sum(no_lab),
+         menores0_14 = ifelse(CH06 < 14, 1, 0),
+         menores0_14 = sum(menores0_14)) %>% 
+  ungroup() %>% 
+  mutate(ing_lab_tot = ITF - ing_nolab_tot,
+         ing_lab_ppa = case_when(ANO4	==	2003	~	ing_lab_tot*	0.318	*	1.6963	,
+                                  ANO4	==	2004	~	ing_lab_tot*	0.344	*	1.6499	,
+                                  ANO4	==	2005	~	ing_lab_tot*	0.341	*	1.6236	,
+                                  ANO4	==	2006	~	ing_lab_tot*	0.327	*	1.6045	,
+                                  ANO4	==	2007	~	ing_lab_tot*	0.323	*	1.5633	,
+                                  ANO4	==	2008	~	ing_lab_tot*	0.317	*	1.4822	,
+                                  ANO4	==	2009	~	ing_lab_tot*	0.283	*	1.4963	,
+                                  ANO4	==	2010	~	ing_lab_tot*	0.260	*	1.4250	,
+                                  ANO4	==	2011	~	ing_lab_tot*	0.249	*	1.3350	,
+                                  ANO4	==	2012	~	ing_lab_tot*	0.230	*	1.3335	,
+                                  ANO4	==	2013	~	ing_lab_tot*	0.200	*	1.3495	,
+                                  ANO4	==	2014	~	ing_lab_tot*	0.133	*	1.3723	,
+                                  ANO4	==	2015	~	ing_lab_tot*	0.116	*	1.3126	,
+                                  ANO4	==	2016	~	ing_lab_tot*	0.069	*	1.3683	,
+                                  ANO4	==	2017	~	ing_lab_tot*	0.064	*	1.3786	,
+                                  ANO4	==	2018	~	ing_lab_tot*	0.051	*	1.5185	,
+                                  ANO4	==	2019	~	ing_lab_tot*	0.026	*	1.5766	,
+                                  ANO4	==	2020	~	ing_lab_tot*	0.016	*	1.6188	,
+                                  ANO4	==	2021	~	ing_lab_tot*	0.011	*	1.5917	,
+                                  ANO4	==	2022	~	ing_lab_tot*	0.009	*	1.5299	,
+                                  ANO4	==	2023	~	ing_lab_tot*	0.005	*	1.5324	
+                                  ))
+
+# Saco a los inactivos del análisis
+eph <- eph %>%
+  filter(cobhe != 9)
+
+# Crea bases con 2024
+# eph2020 <- eph %>%
+#   filter(ANO4 != 2022)
+# 
+# eph20202022 <- eph
+# 
+# eph <- eph %>%
+#   filter(ANO4 != 2020)
+
+# levels(eph$cobhe_f)[levels(eph$cobhe_f)=="Inactivos"] <- "Jubilados, pensionados y otros Inactivos"
+# levels(eph2020$cobhe_f)[levels(eph2020$cobhe_f)=="Inactivos"] <- "Jubilados, pensionados y otros Inactivos"
+
+eph$cobhe_f <- factor(eph$cobhe, 
+                      labels = c('Propietarios y directivos >5',
+                                 'Propietarios y directivos <=5',
+                                 'Cuenta propia profesionales / calificados',
+                                 'Trabajadores no manuales >5',
+                                 'Trabajadores manuales >5',
+                                 'Trabajadores no manuales <=5',
+                                 'Trabajadores manuales <=5',
+                                 'Cuenta propia no calificados'))
+
+#Preparación de mapa--------------
+argentina <- st_read("C:/Users/josed/OneDrive/Otros/proyectos_R/mapas/Codgeo_Pais_x_dpto_con_datos/argentina_n.shp")
+argentina <- argentina %>%
+  filter(!link %in% c("94028"))
+
+provincias <- st_read("C:/Users/josed/OneDrive/Otros/proyectos_R/mapas/Codgeo_Pais_x_prov_datos/provincias_n.shp")
+
+partidos <- c("06028", "06035", "06091", "06134", "06252", "06260", "06270", "06274", "06364", "06371",
+              "06408", "06410", "06412", "06427", "06434", "06490", "06515", "06525", "06539", "06560",
+              "06568", "06638", "06648", "06658", "06749", "06756", "06760", "06778", "06805", "06840",
+              "06861")
+
+argentina$link <- as.character(argentina$link)
+argentina$codpcia <- as.numeric(argentina$codpcia)
+
+argentina <- argentina %>%
+  mutate(REGION = case_when(codpcia == 2 | (link %in% partidos) ~ 1,
+                            codpcia == 10 | codpcia == 38 | codpcia == 46 | codpcia == 66 |
+                              codpcia == 90 | codpcia == 86 ~ 40,
+                            codpcia == 18 | codpcia == 22 | codpcia == 54 | codpcia == 34 ~ 41,
+                            codpcia == 50 | codpcia == 70 | codpcia == 74 ~ 42,
+                            (codpcia == 6 & !(link %in% partidos)) | codpcia == 30 | codpcia == 14
+                            | codpcia == 82 | codpcia == 42 ~ 43,
+                            codpcia == 58 | codpcia == 62 | codpcia == 26 | codpcia == 78 |
+                              codpcia == 94 ~ 44,
+                            TRUE ~ NA_real_))
+
+options(OutDec= ",")
+```
+
+```{r}
+# Arreglo variables ----------------
+engho0418$anio2 <- factor(engho0418$anio2, labels = c("2004-2005", "2012-2013", "2017-2018"))
+
+engho0418$anio <- ifelse(engho0418$anio == 2013, 2012, engho0418$anio) #Para mi el año que viene en la ENGHO original está mal
+engho0418$trimestre <- ifelse(engho0418$anio == 2017, 4, engho0418$trimestre) #Para mi el año que viene en la ENGHO original está mal
+
+
+engho0418$gastotpc <- engho0418$gastot / engho0418$cantmiem
+engho0418$ipcf <- engho0418$ingtoth / engho0418$cantmiem
+
+engho0418$gc09_01_pc <- engho0418$gc09_01 / engho0418$cantmiem
+engho0418$gc09_02_pc <- engho0418$gc09_02 / engho0418$cantmiem
+engho0418$gc09_03_pc <- engho0418$gc09_03 / engho0418$cantmiem
+engho0418$gc09_04_pc <- engho0418$gc09_04 / engho0418$cantmiem
+engho0418$gc09_05_pc <- engho0418$gc09_05 / engho0418$cantmiem
+engho0418$gc09_06_pc <- engho0418$gc09_06 / engho0418$cantmiem
+engho0418$gc09_07_pc <- engho0418$gc09_07 / engho0418$cantmiem
+engho0418$gc09_08_pc <- engho0418$gc09_08 / engho0418$cantmiem
+engho0418$gc09_09_pc <- engho0418$gc09_09 / engho0418$cantmiem
+
+engho0418 <- engho0418 %>% 
+  mutate(gastot_ppa = case_when(anio ==	2004	&	trimestre ==	4	~	gastot	*	0.335734212	*	1.649790227,
+                                anio ==	2005	&	trimestre ==	1	~	gastot	*	0.339702079	*	1.623410778,
+                                anio ==	2005	&	trimestre ==	2	~	gastot	*	0.343929141	*	1.623410778,
+                                anio ==	2005	&	trimestre ==	3	~	gastot	*	0.344605214	*	1.623410778,
+                                anio ==	2005	&	trimestre ==	4	~	gastot	*	0.334077109	*	1.623410778,
+                                anio ==	2012	&	trimestre ==	1	~	gastot	*	0.229595263	*	1.333922443,
+                                anio ==	2012	&	trimestre ==	2	~	gastot	*	0.223892658	*	1.333922443,
+                                anio ==	2012	&	trimestre ==	3	~	gastot	*	0.216500448	*	1.333922443,
+                                anio ==	2012	&	trimestre ==	4	~	gastot	*	0.208061859	*	1.333922443,
+                                anio ==	2017	&	trimestre ==	4	~	gastot	*	0.056324572	*	1.380727681,
+                                anio ==	2018	&	trimestre ==	1	~	gastot	*	0.050228315	*	1.493626517,
+                                anio ==	2018	&	trimestre ==	2	~	gastot	*	0.042312789	*	1.493626517,
+                                anio ==	2018	&	trimestre ==	3	~	gastot	*	0.03146146	*	1.493626517,
+                                anio ==	2018	&	trimestre ==	4	~	gastot	*	0.026328651	*	1.493626517),
+         ingtoth_ppa = case_when(anio ==	2004	&	trimestre ==	4	~	ingtoth	*	0.335734212	*	1.649790227,
+                                 anio ==	2005	&	trimestre ==	1	~	ingtoth	*	0.339702079	*	1.623410778,
+                                 anio ==	2005	&	trimestre ==	2	~	ingtoth	*	0.343929141	*	1.623410778,
+                                 anio ==	2005	&	trimestre ==	3	~	ingtoth	*	0.344605214	*	1.623410778,
+                                 anio ==	2005	&	trimestre ==	4	~	ingtoth	*	0.334077109	*	1.623410778,
+                                 anio ==	2012	&	trimestre ==	1	~	ingtoth	*	0.229595263	*	1.333922443,
+                                 anio ==	2012	&	trimestre ==	2	~	ingtoth	*	0.223892658	*	1.333922443,
+                                 anio ==	2012	&	trimestre ==	3	~	ingtoth	*	0.216500448	*	1.333922443,
+                                 anio ==	2012	&	trimestre ==	4	~	ingtoth	*	0.208061859	*	1.333922443,
+                                 anio ==	2017	&	trimestre ==	4	~	ingtoth	*	0.056324572	*	1.380727681,
+                                 anio ==	2018	&	trimestre ==	1	~	ingtoth	*	0.050228315	*	1.493626517,
+                                 anio ==	2018	&	trimestre ==	2	~	ingtoth	*	0.042312789	*	1.493626517,
+                                 anio ==	2018	&	trimestre ==	3	~	ingtoth	*	0.03146146	*	1.493626517,
+                                 anio ==	2018	&	trimestre ==	4	~	ingtoth	*	0.026328651	*	1.493626517))
+
+#Sacar casos rurales y desocupados de la base
+engho0418u <- engho0418 %>% 
+  filter(tipoarea == "U" | is.na(tipoarea)) %>% 
+  filter(condocup == 1 | is.na(condocup)) %>% 
+  filter(estado == 1 | is.na(estado))
+
+options(OutDec= ",")
+```
+
+# 1. Introducción y enfoque {background-color="#00589b"}
+
+## Objetivos y dimensiones de análisis
+
+::: columns
+::: {.column width="65%"}
+::: incremental
+-   Analizar los cambios en las clases socio-ocupacionales de la Argentina en el período 2004-2024.
+-   Continuar la tradición de estudios de análisis estructural de largo plazo.
+-   Mirada sobre la estructura de clases socio-ocupacionales.
+-   Dimensiones analizadas de las **condiciones de vida**: [estructura demográfica, vivienda y el hábitat, educación, ingresos, gastos de consumo en los hogares]{style="color:#00589b"}
+:::
+:::
+
+::: {.column width="35%"}
+::: fragment
+::: {.absolute top="25%"}
+::: {.callout-tip title="Documento de consulta" icon="false"}
+Chávez Molina, Eduardo y Rodríguez de la Fuente, José Javier (2023). *La estructura social de la Argentina en las últimas dos décadas: una mirada desde la heterogeneidad estructural*. Documentos de Proyectos. Santiago de Chile: CEPAL.
+:::
+:::
+:::
+:::
+:::
+
+## Enfoque de clase
+
+::: incremental
+-   Enfoque basado en la esfera económica-laboral.
+-   Enfoque sociológico: asociación entre la pertenencia a una clase y las condiciones de vida es probabilística y no determinista.
+-   Necesidad de un enfoque que pueda ser operacionalizado y aplicable a la realidad argentina.
+-   Clasificador Ocupacional basado en la Heterogeneidad Estructural (COBHE)
+    -   Considera a las relaciones jerárquicas, ocupacionales y de calificación.
+    -   Efecto de la heterogeneidad productiva en las relaciones laborales.
+:::
+
+## Diseño Metodológico
+
+::: incremental
+-   Fuentes de datos:
+    -   Encuesta Permanente de Hogares (EPH - INDEC)
+    -   Encuesta Nacional de Gastos de los Hogares (ENGHo – INDEC)
+-   Unidad de análisis:
+    -   Hogares con jefe o jefa mayor de 18 años que pertenezca a la población económicamente activa (PEA). *Enfoque de dominancia*.
+    -   Individuos mayores de 18 años que pertenezcan a la población económicamente activa (PEA).
+-   Período de análisis: **2004-2024**. Argentina urbana.
+:::
+
+# 2. Estructura demográfica {background-color="#00589b"}
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+# tabla <- eph %>%
+#   filter(dominancia == 1 & CH06 >= 18) %>%
+#   group_by(ANO4, cobhe_f) %>%
+#   tally(PONDERA) %>%
+#   spread(ANO4, value = n) %>%
+#   adorn_percentages("col") %>%
+#   adorn_pct_formatting(digits = 1, affix_sign = F) %>%
+#   select(cobhe_f, "2004", "2006", "2008", "2010", "2012", "2014", "2018", "2020", "2022")
+# 
+# tabla %>%
+#   pivot_longer(!cobhe_f, names_to = "Año", values_to = "Porcentaje") %>%
+#   mutate(Porcentaje = as.numeric(Porcentaje)) %>%
+#   group_by(cobhe_f) %>%
+#   summarise(Tendencia = list(Porcentaje)) %>%
+#   left_join(tabla, by = "cobhe_f") %>% 
+#   select(-Tendencia, everything(), Tendencia) %>%
+#   gt(rowname_col = "cobhe_f") %>% 
+#   tab_stubhead(label = "Clase") %>% 
+#   gt_plt_sparkline(Tendencia, same_limit = F) %>% 
+#   gt_theme_guardian()
+
+
+eph %>%
+  filter(CH06 >= 18 & !is.na(cobhe)) %>% 
+  group_by(ANO4, cobhe_f) %>%
+  tally(PONDERA) %>%
+  group_by(ANO4) %>% 
+  mutate(prop = n/sum(n)) %>% 
+  ggplot(mapping = aes(x = ANO4, y = prop, fill = cobhe_f)) +
+  geom_col() +
+  geom_text(aes(label = scales::percent(prop, accuracy = 0.1)), 
+            position = position_stack(.5), size = 2.9) +
+  scale_fill_d3(labels = function(x) str_wrap(x, width = 20)) +
+  labs(caption = "Fuente: Elaboración propia en base a EPH-INDEC 2004-2024.",
+       fill = "Clase Social",
+        title = "Evolución de la estructura de clases (individuos)",
+        subtitle = "Argentina urbana 2004-2024") +
+  theme(legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key.height=unit(1, "cm"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 9),
+        plot.caption = element_text(size = 10, hjust = 1),
+        strip.text = element_text(face = "bold"),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16)) +
+  scale_x_continuous(breaks = c(2004:2024)) +
+  scale_y_continuous(labels= scales::percent_format(accuracy = 1L), breaks=seq(0, 1, 0.1))
+  
+
+```
+
+##  {.center}
+
+```{r}
+eph %>% 
+  filter(CH06 >= 18 & !is.na(cobhe)) %>% 
+  group_by(ANO4, cobhe_f, sexo) %>% 
+  tally(PONDERA) %>% 
+  pivot_wider(names_from = sexo, values_from = n) %>% 
+  mutate(masculinidad = round((Varón / Mujer)*100, digits = 2)) %>% 
+  pivot_wider(id_cols = cobhe_f, names_from = ANO4, values_from = masculinidad) %>%
+  gt() %>%
+  tab_options(row_group.as_column = TRUE,
+              heading.align = 'left',
+              table.font.size = 13,
+              heading.title.font.size = 20,
+              heading.subtitle.font.size = 18,
+              footnotes.font.size = 14
+              ) %>%
+  tab_header(
+    title = md("**Índice de masculinidad por clase. Argentina urbana 2004-2024**"),
+    subtitle = "Cantidad de varones por cada 100 mujeres") %>% 
+  tab_footnote(footnote = "Fuente: Elaboración propia en base a EPH-INDEC 2004-2024.") %>% 
+  data_color(
+    direction = "column",
+    palette = "PuBu") 
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 6
+
+graf <- eph %>% 
+  filter(CH06 >= 18 & !is.na(cobhe) & ANO4 %in% c("2004", "2014", "2023")) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  dplyr::summarise(edad = round(weighted.mean(CH06, PONDERA), digits = 2),
+                   sd = round(sqrt(wtd.var(CH06, PONDERA)), digits = 2),
+                   CI = 1.96 * (sd / sqrt(n())))
+
+prom <- eph %>% 
+  filter(CH06 >= 18 & !is.na(cobhe) & ANO4 %in% c("2004", "2014", "2023")) %>% 
+  group_by(ANO4) %>% 
+  dplyr::summarise(edad = round(weighted.mean(CH06, PONDERA), digits = 2))
+
+ggplot(graf, aes(x=fct_rev(cobhe_f), y=edad, group=1)) +
+  geom_pointrange(aes(ymin = edad-sd, ymax = edad+sd), size = 0.3) +
+  geom_hline(data = prom, aes(yintercept = edad), color = "red", linewidth = 0.5, linetype = "dashed")+
+  labs(title = "Edad promedio y desviación típica según clase (individuos)",
+       subtitle = "Argentina urbana. 2004, 2014, 2023",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold"),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  scale_y_continuous(limits = c(20,65), breaks = seq(20, 65, 5)) +
+  coord_flip() +
+  facet_wrap(~ANO4)
+
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 6
+
+base_long_2023 <- eph %>%
+  filter(ANO4 == 2023 & CH06 >= 18) %>%
+  group_by(REGION, cobhe_f) %>%
+  tally(wt=PONDERA) %>%
+  group_by(REGION) %>%
+  mutate(percent = n/sum(n))
+
+mapa_2023 <- merge(argentina, base_long_2023, by="REGION", all.x = TRUE)
+
+ggplot() +
+  geom_sf(data = mapa_2023, aes(group = REGION, fill = percent), color = NA) +
+  geom_sf(data = provincias, fill = NA, color = NA) +
+  theme_map() +
+  labs(title = "Distribución de las clases sociales por región",
+       subtitle = "Argentina urbana 2023",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       fill = "% Clase social") +
+  theme(legend.title = element_text(size = 9, face = "bold", vjust = .5),
+        legend.text = element_text(size = 8),
+        legend.position = "bottom",
+        legend.justification = "center",
+        panel.border = element_rect(color = "#2D2D2D", fill = NA),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        plot.caption = element_text(size = 10, hjust = 1),
+        strip.text = element_text(face = "bold", size = 7.5),
+        legend.background = element_blank(),
+        legend.key.width = unit(.1, "npc")) +
+  scale_fill_viridis_c(direction = -1, labels= scales::percent_format(accuracy = 1L),
+                       guide = "colourbar") +
+  facet_wrap(~cobhe_f, nrow = 1, labeller = labeller(cobhe_f = label_wrap_gen(15)))
+```
+
+## 
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| fig-align: center
+
+
+graf <- eph %>% 
+  filter(dominancia == 1 & CH06 >= 18) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  dplyr::summarise(miembros = round(weighted.mean(IX_TOT, PONDERA), digits = 2),
+                   sd = round(sqrt(wtd.var(IX_TOT, PONDERA)), digits = 2),
+                   CI = 1.96 * (sd / sqrt(n())))
+
+prom <- eph %>% 
+  filter(dominancia == 1 & CH06 >= 18) %>% 
+  group_by(ANO4) %>% 
+  dplyr::summarise(miembros = round(weighted.mean(IX_TOT, PONDERA), digits = 2),
+                   sd = round(sqrt(wtd.var(IX_TOT, PONDERA)), digits = 2),
+                   CI = 1.96 * (sd / sqrt(n())))
+
+ggplot(graf, aes(x=ANO4, y=miembros)) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
+  labs(title = "Tamaño promedio del hogar según clase social",
+       subtitle = "Argentina urbana. 2004-2023",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key.size = unit(1.7, 'lines')) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(2.7,4.3), breaks = seq(2.7, 4.3, .1)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+```
+
+# 3. Vivienda y hábitat {background-color="#00589b"}
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+graf <- eph %>% 
+  filter(dominancia == 1 & CH06 >= 18) %>% 
+  mutate(hacinamiento = case_when(IX_TOT/II2 > 3 ~ 1,
+                                  IX_TOT/II2 <= 3 ~ 0)) %>%
+  group_by(ANO4, cobhe_f) %>%
+  summarise(hacinamiento_crit = round(weighted.mean(hacinamiento, PONDERA)*100, digits = 2)) 
+
+prom <- eph %>% 
+  filter(dominancia == 1 & CH06 >= 18) %>% 
+  mutate(hacinamiento = case_when(IX_TOT/II1 > 3 ~ 1,
+                                  IX_TOT/II1 <= 3 ~ 0)) %>%
+  group_by(ANO4) %>%
+  summarise(hacinamiento_crit = round(weighted.mean(hacinamiento, PONDERA)*100, digits = 2)) 
+
+ggplot(graf, aes(x=ANO4, y=hacinamiento_crit)) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
+  labs(title = "Evolución de las viviendas con hacinamiento crítico según clase social",
+       subtitle = "Argentina urbana. 2004-2024",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key.size = unit(1.7, 'lines')) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(0,22), breaks = seq(0, 22, 2)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+graf <- eph %>% 
+  filter(dominancia == 1 & !is.na(calmat) & CH06 >= 18) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  summarise(calmat = round(weighted.mean(calmat_dic, PONDERA)*100, digits = 2)) 
+
+prom <- eph %>% 
+  filter(dominancia == 1 & !is.na(calmat) & CH06 >= 18) %>% 
+  group_by(ANO4) %>% 
+  summarise(calmat = round(weighted.mean(calmat_dic, PONDERA)*100, digits = 2)) 
+
+ggplot(graf, aes(x=ANO4, y=calmat)) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
+  labs(title = "Evolución de los hogares en viviendas con calidad constructiva satisfactoria \nsegún clase social",
+       subtitle = "Argentina urbana. 2004-2024",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(60,100), breaks = seq(60, 100, 5)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+
+graf <- eph %>% 
+  filter(dominancia == 1 & !is.na(incalserv) & CH06 >= 18) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  summarise(incalserv = round(weighted.mean(incalserv, PONDERA)*100, digits = 2)) 
+
+prom <- eph %>% 
+  filter(dominancia == 1 & !is.na(incalserv) & CH06 >= 18) %>% 
+  group_by(ANO4) %>% 
+  summarise(incalserv = round(weighted.mean(incalserv, PONDERA)*100, digits = 2)) 
+
+ggplot(graf, aes(x=ANO4, y=incalserv)) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
+  labs(title = "Evolución de los hogares en viviendas con calidad de los servicios sanitarios satisfactoria \nsegún clase social",
+       subtitle = "Argentina urbana. 2004-2024",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(30,100), breaks = seq(30, 100, 5)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+```
+
+# 4. Educación {background-color="#00589b"}
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+graf <- eph %>% 
+  filter(!is.na(cobhe_f) & CH06 >= 20) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  summarise(educ_secundaria = round(weighted.mean(educ_secundaria, PONDERA)*100, digits = 2))
+
+prom <- eph %>% 
+  filter(!is.na(cobhe_f) & CH06 >= 20) %>% 
+  group_by(ANO4) %>% 
+  summarise(educ_secundaria = round(weighted.mean(educ_secundaria, PONDERA)*100, digits = 2)) 
+
+ggplot(graf, aes(x=ANO4, y=educ_secundaria)) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
+  labs(title = "Evolución de personas mayores de 20 años con nivel educativo secundario completo \nsegún clase social",
+       subtitle = "Argentina urbana. 2004-2024",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(0,100), breaks = seq(0, 100, 5)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+
+graf <- eph %>% 
+  filter(!is.na(cobhe_f) & CH06 >= 30) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  summarise(educ_superior = round(weighted.mean(educ_superior, PONDERA)*100, digits = 2)) 
+
+prom <- eph %>% 
+  filter(!is.na(cobhe_f) & CH06 >= 30) %>% 
+  group_by(ANO4) %>% 
+  summarise(educ_superior = round(weighted.mean(educ_superior, PONDERA)*100, digits = 2)) 
+
+ggplot(graf, aes(x=ANO4, y=educ_superior)) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
+  labs(title = "Evolución de personas mayores de 30 años con nivel educativo superior completo \nsegún clase social",
+       subtitle = "Argentina urbana. 2004-2024",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(0,75), breaks = seq(0, 75, 5)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+```
+
+# 5. Desigualdad de ingresos {background-color="#00589b"}
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+graf <- eph %>%
+  filter(dominancia == 1 & !is.na(cobhe) & CH06 >= 18) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  dplyr::summarise(ITF = round(weighted.mean(itf_ppa, PONDIH_emp, na.rm = T)))
+
+prom <- eph %>%
+  filter(dominancia == 1 & !is.na(cobhe) & CH06 >= 18) %>% 
+  group_by(ANO4) %>% 
+  dplyr::summarise(ITF = round(weighted.mean(itf_ppa, PONDIH_emp, na.rm = T)))
+
+ggplot(graf, aes(x=ANO4, y=ITF)) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, linewidth = .8, alpha = .6) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  geom_line(data = prom, linetype = "dotted", linewidth = .9, color = "black") +
+  labs(title = "Evolución de los ingresos totales familiares promedio según clase social",
+       subtitle = "Argentina urbana. 2004-2024 (En dólares PPA corrientes)",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(0,6500), breaks = seq(0, 6500, 500)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+
+graf <- eph %>% 
+  filter(dominancia == 1 & !is.na(cobhe) & CH06 >= 18) %>% 
+  group_by(ANO4, cobhe_f) %>% 
+  summarise(no_lab = round(weighted.mean(ing_nolab_tot, PONDIH_emp) / 
+                             weighted.mean(ITF, PONDIH_emp)*100, digits = 2))
+
+prom <- eph %>% 
+  filter(dominancia == 1 & !is.na(cobhe) & CH06 >= 18) %>%
+  group_by(ANO4) %>% 
+  summarise(no_lab = round(weighted.mean(ing_nolab_tot, PONDIH_emp) / 
+                             weighted.mean(ITF, PONDIH_emp)*100, digits = 2)) 
+
+ggplot(graf, aes(x=ANO4, y=no_lab)) +
+  geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
+  geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
+  labs(title = "Evolución de ingresos no laborales del hogar según clase social",
+       subtitle = "Argentina urbana. 2004-2024 (en porcentajes del ingreso total familiar)",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(limits = c(0,35), breaks = seq(0, 35, 5)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1)) +
+  gghighlight(max(no_lab) > 25) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black")
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+## Theil general ------------------
+eph <- eph %>%
+  mutate(ing_lab_bis= ifelse(ing_lab_tot <= 0, 0.000001, ing_lab_tot)) %>% 
+  mutate(itf_bis= ifelse(ITF <= 0, 0.000001, ITF))
+
+theil_evol <- eph %>%
+  filter(dominancia == 1 & !is.na(cobhe) & CH06 >= 18) %>% 
+  group_by(ANO4) %>% 
+  summarise(theil_t = dineq::theil.wtd(itf_bis, weights = PONDIH_emp),
+            theil_lab = dineq::theil.wtd(ing_lab_bis, weights = PONDIH_emp),
+            diferencia = (theil_lab - theil_t)) %>% 
+  rename(Año = ANO4)
+
+#### ITF -----------------
+descomp_theil <- data.frame()
+
+for(i in unique(sort(eph$ANO4))) {
+  select <- eph %>% 
+    filter(ANO4==i & dominancia == 1 & !is.na(cobhe) & CH06 >= 18)
+  theil <- IC2::decompGEI(select$itf_bis, select$cobhe_f, 
+                          w = select$PONDIH_emp, alpha = 1, ELMO = FALSE)
+  theil <- unlist(theil$decomp)
+  descomp_theil <- rbind(descomp_theil, theil)
+}
+
+colnames(descomp_theil) <- c("intra_tot", "inter_tot")
+
+descomp_theil <- descomp_theil %>% 
+  add_column("Año" = unique(sort(eph$ANO4)), .before = "intra_tot")
+
+descomp_theil[,-1] <- round(prop.table(as.matrix(descomp_theil[-1]), margin = 1)*100, digits=2)
+
+#### Ingresos laborales ----------------
+descomp_theil_lab <- data.frame()
+
+for(i in unique(sort(eph$ANO4))) {
+  select <- eph %>% 
+    filter(ANO4==i & dominancia == 1 & !is.na(cobhe) & CH06 >= 18)
+  theil_lab <- IC2::decompGEI(select$ing_lab_bis, select$cobhe_f, 
+                              w = select$PONDIH_emp, alpha = 1, ELMO = FALSE)
+  theil_lab <- unlist(theil_lab$decomp)
+  descomp_theil_lab <- rbind(descomp_theil_lab, theil_lab)
+}
+
+colnames(descomp_theil_lab) <- c("intra_lab", "inter_lab")
+
+descomp_theil_lab <- descomp_theil_lab %>% 
+  add_column("Año" = unique(sort(eph$ANO4)), .before = "intra_lab")
+
+descomp_theil_lab[,-1] <- round(prop.table(as.matrix(descomp_theil_lab[-1]), margin = 1)*100, digits=2)
+
+#pegado
+theil_evol <- theil_evol %>% 
+  left_join(descomp_theil, by = "Año") %>% 
+  left_join(descomp_theil_lab, by = "Año") %>% 
+  as.data.frame()
+
+
+###
+graf <- theil_evol %>% 
+  select(1:3) %>% 
+  pivot_longer(!Año, names_to = "tipo", values_to = "theil")  
+
+ggplot(graf, aes(x=Año, y=theil, colour = tipo)) +
+  geom_line(linetype = 1, size = .8) +
+  geom_point(size = 1.8) +
+  labs(title = "Coeficiente de Theil para el ingreso per cápita familiar laboral y total (Hogares)",
+       subtitle = "Argentina urbana. 2004-2024",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Theil") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = c("Laboral", "Total")) +
+  scale_y_continuous(limits = c(.2,.5), breaks = seq(.2, .5, .05)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+
+graf <- theil_evol %>% 
+  select(Año, inter_tot, inter_lab) %>% 
+  pivot_longer(!Año, names_to = "tipo", values_to = "porcentaje")  
+
+ggplot(graf, aes(x=Año, y=porcentaje, colour = tipo)) +
+  geom_line(linetype = 1, size = .8) +
+  geom_point(size = 1.8) +
+  labs(title = "Descomposición del coeficiente de Theil. Componente inter-clases (Hogares)",
+       subtitle = "Argentina urbana. 2003-2022 (en porcentajes)",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Tipo") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3(labels = c("Laboral", "Total")) +
+  scale_y_continuous(limits = c(15,30), breaks = seq(15, 30, 1)) +
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+```
+
+# 6. Gasto de los hogares {background-color="#00589b"}
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+graf <- engho0418 %>% 
+  filter(parentesco == 1 & edad >= 18) %>% 
+  filter(tipoarea == "U" | is.na(tipoarea)) %>%
+  group_by(anio2) %>% 
+  summarise(gc01 = weighted.mean(gc09_01, w = pondera, na.rm = TRUE),
+            gc02 = weighted.mean(gc09_02, w = pondera, na.rm = TRUE),
+            gc03 = weighted.mean(gc09_03, w = pondera, na.rm = TRUE),
+            gc04 = weighted.mean(gc09_04, w = pondera, na.rm = TRUE),
+            gc05 = weighted.mean(gc09_05, w = pondera, na.rm = TRUE),
+            gc06 = weighted.mean(gc09_06, w = pondera, na.rm = TRUE),
+            gc07 = weighted.mean(gc09_07, w = pondera, na.rm = TRUE),
+            gc08 = weighted.mean(gc09_08, w = pondera, na.rm = TRUE),
+            gc09 = weighted.mean(gc09_09, w = pondera, na.rm = TRUE)) %>%
+  pivot_longer(!anio2, names_to = "tipo", values_to = "mean") %>% 
+  mutate(tipo = factor(tipo, labels = c("Alimentos y bebidas", "Indumentaria y calzado",
+                                        "Vivienda, agua, electricidad, gas y otros combustibles",
+                                        "Equipamiento y mantenimiento del hogar",
+                                        "Salud", "Transporte y comunicaciones", 
+                                        "Recreación y cultura","Educación",
+                                        "Bienes y servicios varios"))) %>% 
+  group_by(anio2) %>% 
+  mutate(gastot = sum(mean),
+         porcentaje = (mean / gastot))
+
+ggplot(graf, aes(x=anio2, y=porcentaje, fill=tipo)) +
+  geom_bar(position="fill", stat="identity", width = .7) +
+  geom_text(aes(label = scales::percent(porcentaje, accuracy = 0.1)),
+            position = position_stack(.5), size = 3) +
+  labs(title = "Evolución de la distribución del gasto total en consumo según rubro por hogar",
+       subtitle = "Argentina urbana. 2004-2018 (en porcentajes)",
+       caption = "Fuente: Elaboración propia en base a ENGHo-INDEC",
+       fill = "Rubro") +
+  theme(legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key.height=unit(1, "cm"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 9),
+        plot.caption = element_text(size = 10, hjust = 1),
+        strip.text = element_text(face = "bold"),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.key.size = unit(2, 'lines')) +
+  scale_fill_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(labels= scales::percent_format(accuracy = 1L), breaks=seq(0, 1, 0.1))
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+graf <- engho0418u %>% 
+  filter(!is.na(cobhe_f), anio2 == "2017-2018") %>% 
+  group_by(cobhe_f) %>% 
+  summarise(gc01 = weighted.mean(gc09_01_pc, w = pondera, na.rm = TRUE),
+            gc02 = weighted.mean(gc09_02_pc, w = pondera, na.rm = TRUE),
+            gc03 = weighted.mean(gc09_03_pc, w = pondera, na.rm = TRUE),
+            gc04 = weighted.mean(gc09_04_pc, w = pondera, na.rm = TRUE),
+            gc05 = weighted.mean(gc09_05_pc, w = pondera, na.rm = TRUE),
+            gc06 = weighted.mean(gc09_06_pc, w = pondera, na.rm = TRUE),
+            gc07 = weighted.mean(gc09_07_pc, w = pondera, na.rm = TRUE),
+            gc08 = weighted.mean(gc09_08_pc, w = pondera, na.rm = TRUE),
+            gc09 = weighted.mean(gc09_09_pc, w = pondera, na.rm = TRUE)) %>%
+  pivot_longer(!cobhe_f, names_to = "tipo", values_to = "mean") %>% 
+  mutate(tipo = factor(tipo, labels = c("Alimentos y bebidas", "Indumentaria y calzado",
+                                        "Vivienda, agua, electricidad, gas y otros combustibles",
+                                        "Equipamiento y mantenimiento del hogar",
+                                        "Salud", "Transporte y comunicaciones", 
+                                        "Recreación y cultura","Educación",
+                                        "Bienes y servicios varios"))) %>% 
+  group_by(cobhe_f) %>% 
+  mutate(gastot = sum(mean),
+         porcentaje = mean / gastot) 
+
+
+ggplot(graf, aes(x=cobhe_f, y=porcentaje, fill=tipo)) +
+  geom_bar(position="fill", stat="identity") +
+  geom_text(aes(label = scales::percent(porcentaje, accuracy = 0.1)),
+            position = position_stack(.5), size = 3) +
+  labs(title = "Distribución del gasto de consumo per cápita por rubro según clase social",
+       subtitle = "Argentina urbana. 2017-2018 (en porcentajes)",
+       caption = "Fuente: Elaboración propia en base a ENGHo-INDEC",
+       fill = "Rubro") +
+  theme(legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key.height=unit(1, "cm"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 9),
+        plot.caption = element_text(size = 10, hjust = 1),
+        strip.text = element_text(face = "bold"),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.key.size = unit(1.7, 'lines')) +
+  scale_fill_d3(labels = function(x) str_wrap(x, width = 25)) +
+  scale_y_continuous(labels= scales::percent_format(accuracy = 1L), breaks=seq(0, 1, 0.1)) +
+  scale_x_discrete(limits = rev, labels = function(x) str_wrap(x, width = 15)) +
+  coord_flip()
+
+
+```
+
+## 
+
+```{r}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 7
+
+
+graf <- engho0418u %>% 
+  filter(!is.na(cobhe_f)) %>% 
+  group_by(anio2, cobhe_f) %>% 
+  summarise(gc01 = weighted.mean(gc09_01_pc, w = pondera, na.rm = TRUE),
+            gc02 = weighted.mean(gc09_02_pc, w = pondera, na.rm = TRUE),
+            gc03 = weighted.mean(gc09_03_pc, w = pondera, na.rm = TRUE),
+            gc04 = weighted.mean(gc09_04_pc, w = pondera, na.rm = TRUE),
+            gc05 = weighted.mean(gc09_05_pc, w = pondera, na.rm = TRUE),
+            gc06 = weighted.mean(gc09_06_pc, w = pondera, na.rm = TRUE),
+            gc07 = weighted.mean(gc09_07_pc, w = pondera, na.rm = TRUE),
+            gc08 = weighted.mean(gc09_08_pc, w = pondera, na.rm = TRUE),
+            gc09 = weighted.mean(gc09_09_pc, w = pondera, na.rm = TRUE)) %>%
+  pivot_longer(!c(cobhe_f, anio2), names_to = "tipo", values_to = "mean") %>% 
+  mutate(tipo = factor(tipo, labels = c("Alimentos y bebidas", "Indumentaria y calzado",
+                                        "Vivienda, agua, electricidad, gas y otros combustibles",
+                                        "Equipamiento y mantenimiento del hogar",
+                                        "Salud", "Transporte y comunicaciones", 
+                                        "Recreación y cultura","Educación",
+                                        "Bienes y servicios varios"))) %>% 
+  group_by(cobhe_f, anio2) %>% 
+  mutate(gastot = sum(mean),
+         porcentaje = mean / gastot) 
+
+graf %>%
+  filter(tipo %in% c("Alimentos y bebidas", "Vivienda, agua, electricidad, gas y otros combustibles", "Salud", "Educación")) %>% 
+  pivot_wider(id_cols = c(cobhe_f, tipo), names_from = anio2, 
+              values_from = porcentaje) %>% 
+  mutate(diferencia = (`2017-2018` - `2004-2005`)/`2004-2005` * 100) %>% 
+  ggplot(aes(x=cobhe_f, y=diferencia, colour=tipo, group = tipo)) +
+  geom_line(linetype = 1, size = 1) +
+  geom_point(size = 2) +
+  geom_hline(aes(yintercept = 0), linewidth = 0.5, linetype = "dashed")+
+  labs(title = "Diferencia del gasto de consumo per cápita por rubros seleccionados según clase social",
+       subtitle = "Argentina urbana. 2004-2005 / 2017-2018 (en diferencia %)",
+       caption = "Fuente: Elaboración propia en base a ENGHo-INDEC",
+       color = "Tipo de gasto") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 10),
+        plot.title = element_text(size = 17),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10),
+        legend.key.size = unit(2, 'lines'),
+        legend.position = "bottom") +
+  scale_color_d3(labels = function(x) str_wrap(x, width = 15)) +
+  scale_y_continuous(limits = c(-30,55), breaks = seq(-30, 55, 10)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 13))
+  
+  
+```
+
+# 7. Conclusiones {background-color="#00589b"}
+
+## Procesos de cambio continuo y unidireccional (I)
+
+::: {style="font-size: 0.85em"}
+::: fragment
+::: {.fragment .semi-fade-out}
+**Estructura demográfica**
+
+-   :arrow_up: Mujeres en la clase *cuenta propia profesional / calificada* y de *Propietarios y directivos \> 5*, pero también en la *cuenta propia no calificada*.
+
+-   :arrow_down: Tamaño de los hogares, y específicamente, en el número de niñas y niños.
+:::
+:::
+
+::: fragment
+**Vivienda y hábitat**
+
+-   :arrow_down: Hacinamiento crítico, específicamente, en las *clases manuales*.
+
+-   :green_square: La calidad constructiva de la vivienda y el acceso a servicios de saneamiento ha mejorado, aunque manteniéndose una distancia considerable entre las clases.
+:::
+:::
+
+## Procesos de cambio continuo y unidireccional (II)
+
+::: {style="font-size: 0.85em"}
+::: fragment
+::: {.fragment .semi-fade-out}
+**Educación**
+
+-   :green_square: Avance significativo en el acceso a estudios secundarios y, en menor medida, a estudios superiores.
+:::
+:::
+
+::: fragment
+::: {.fragment .semi-fade-out}
+**Ingresos**
+
+-   :arrow_up: los ingresos no laborales dentro del ingreso total de los hogares
+:::
+:::
+
+::: fragment
+**Gasto de los hogares**
+
+-   Mantenimiento de las desigualdades de clase respecto al gasto en consumo de los hogares.
+:::
+:::
+
+## Ruptura y contratendencia (I)
+
+::: {style="font-size: 0.85em"}
+::: fragment
+::: {.fragment .semi-fade-out}
+**Estructura demográfica**
+
+-   Cambios en la morfología de las clases sociales
+
+-   :arrow_up: y :arrow_down: clases ligadas al empleo manual y asalariado
+
+-   :arrow_up: Clases ligadas al empleo profesional y calificado. Asalariado y cuenta propia
+:::
+:::
+
+::: fragment
+**Ingresos**
+
+-   Cambio significativo en la dinámica que tomó la desigualdad de ingresos entre 2003-2015 y 2016-2024.
+
+-   Entre 2003-2015, los ingresos reales aumentaron para todas las clases socio-ocupacionales, con especial énfasis en las manuales y cuenta propia no calificada.
+
+-   :arrow_up: y :arrow_down: de la desigualdad entre períodos.
+:::
+:::
+
+## Ruptura y contratendencia (II)
+
+::: {style="font-size: 0.85em"}
+::: fragment
+**Gastos de los hogares**
+
+-   La mejora en el ingreso real tiene su correlato tanto en la evolución del gasto de consumo como en la reducción de la desigualdad hasta 2012-2013.
+
+
+-   Cambio de tendencia para los gastos en educación, salud y “vivienda y servicios del hogar”.
+
+:::
+:::
+
+
+# Fin {background-color="#00589b"}
