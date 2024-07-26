@@ -1,4 +1,5 @@
 # Presentación para las **I Jornadas de sociología de la Universidad Nacional de Córdoba**
 
-Autores: Eduardo Chávez Molina y José Rodríguez de la Fuente
+Autores: Eduardo Chávez Molina y José Rodríguez de la Fuente 
+
 Título: Tendencias y contratendencias en las desigualdades en Argentina. 2003-2024
