@@ -4,4 +4,4 @@ Autores: Eduardo Chávez Molina y José Rodríguez de la Fuente
 
 Título: Tendencias y contratendencias en las desigualdades en Argentina. 2003-2024
 
-Link a la presentación: https://github.com/joserodriguez86/jornadas_unc/presentacion_UNC2024.html
+Link a la presentación: https://joserodriguez86.github.io/jornadas_unc/presentacion_UNC2024.html
