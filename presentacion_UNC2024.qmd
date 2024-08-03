@@ -11,12 +11,12 @@ format:
     theme: [default, custom.scss]
     highlight-style: espresso
     smooth-scroll: true
-    embed-resources: false
+    embed-resources: true
     width: 1280
     height: 720
     transition: fade
-    chalkboard: 
-      boardmarker-width: 5
+    # chalkboard: 
+    #   boardmarker-width: 5
 from: markdown+emoji
 execute:
   echo: false
