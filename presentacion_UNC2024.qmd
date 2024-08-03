@@ -316,28 +316,6 @@ Chávez Molina, Eduardo y Rodríguez de la Fuente, José Javier (2023). *La estr
 #| fig-width: 10
 #| fig-height: 7
 
-# tabla <- eph %>%
-#   filter(dominancia == 1 & CH06 >= 18) %>%
-#   group_by(ANO4, cobhe_f) %>%
-#   tally(PONDERA) %>%
-#   spread(ANO4, value = n) %>%
-#   adorn_percentages("col") %>%
-#   adorn_pct_formatting(digits = 1, affix_sign = F) %>%
-#   select(cobhe_f, "2004", "2006", "2008", "2010", "2012", "2014", "2018", "2020", "2022")
-# 
-# tabla %>%
-#   pivot_longer(!cobhe_f, names_to = "Año", values_to = "Porcentaje") %>%
-#   mutate(Porcentaje = as.numeric(Porcentaje)) %>%
-#   group_by(cobhe_f) %>%
-#   summarise(Tendencia = list(Porcentaje)) %>%
-#   left_join(tabla, by = "cobhe_f") %>% 
-#   select(-Tendencia, everything(), Tendencia) %>%
-#   gt(rowname_col = "cobhe_f") %>% 
-#   tab_stubhead(label = "Clase") %>% 
-#   gt_plt_sparkline(Tendencia, same_limit = F) %>% 
-#   gt_theme_guardian()
-
-
 eph %>%
   filter(CH06 >= 18 & !is.na(cobhe)) %>% 
   group_by(ANO4, cobhe_f) %>%
@@ -405,14 +383,14 @@ eph %>%
 #| fig-height: 6
 
 graf <- eph %>% 
-  filter(CH06 >= 18 & !is.na(cobhe) & ANO4 %in% c("2004", "2014", "2023")) %>% 
+  filter(CH06 >= 18 & !is.na(cobhe) & ANO4 %in% c("2004", "2014", "2024")) %>% 
   group_by(ANO4, cobhe_f) %>% 
   dplyr::summarise(edad = round(weighted.mean(CH06, PONDERA), digits = 2),
                    sd = round(sqrt(wtd.var(CH06, PONDERA)), digits = 2),
                    CI = 1.96 * (sd / sqrt(n())))
 
 prom <- eph %>% 
-  filter(CH06 >= 18 & !is.na(cobhe) & ANO4 %in% c("2004", "2014", "2023")) %>% 
+  filter(CH06 >= 18 & !is.na(cobhe) & ANO4 %in% c("2004", "2014", "2024")) %>% 
   group_by(ANO4) %>% 
   dplyr::summarise(edad = round(weighted.mean(CH06, PONDERA), digits = 2))
 
@@ -420,7 +398,7 @@ ggplot(graf, aes(x=fct_rev(cobhe_f), y=edad, group=1)) +
   geom_pointrange(aes(ymin = edad-sd, ymax = edad+sd), size = 0.3) +
   geom_hline(data = prom, aes(yintercept = edad), color = "red", linewidth = 0.5, linetype = "dashed")+
   labs(title = "Edad promedio y desviación típica según clase (individuos)",
-       subtitle = "Argentina urbana. 2004, 2014, 2023",
+       subtitle = "Argentina urbana. 2004, 2014, 2024",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC") +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
@@ -441,21 +419,21 @@ ggplot(graf, aes(x=fct_rev(cobhe_f), y=edad, group=1)) +
 #| fig-width: 10
 #| fig-height: 6
 
-base_long_2023 <- eph %>%
-  filter(ANO4 == 2023 & CH06 >= 18) %>%
+base_long_2024 <- eph %>%
+  filter(ANO4 == 2024 & CH06 >= 18) %>%
   group_by(REGION, cobhe_f) %>%
   tally(wt=PONDERA) %>%
   group_by(REGION) %>%
   mutate(percent = n/sum(n))
 
-mapa_2023 <- merge(argentina, base_long_2023, by="REGION", all.x = TRUE)
+mapa_2024 <- merge(argentina, base_long_2024, by="REGION", all.x = TRUE)
 
 ggplot() +
-  geom_sf(data = mapa_2023, aes(group = REGION, fill = percent), color = NA) +
+  geom_sf(data = mapa_2024, aes(group = REGION, fill = percent), color = NA) +
   geom_sf(data = provincias, fill = NA, color = NA) +
   theme_map() +
   labs(title = "Distribución de las clases sociales por región",
-       subtitle = "Argentina urbana 2023",
+       subtitle = "Argentina urbana 2024",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
        fill = "% Clase social") +
   theme(legend.title = element_text(size = 9, face = "bold", vjust = .5),
@@ -513,7 +491,7 @@ ggplot(graf, aes(x=ANO4, y=miembros)) +
         legend.text = element_text(size = 10),
         legend.key.size = unit(1.7, 'lines')) +
   scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
-  scale_y_continuous(limits = c(2.7,4.3), breaks = seq(2.7, 4.3, .1)) +
+  scale_y_continuous(limits = c(2.4 ,4.3), breaks = seq(2.4 , 4.3, .1)) +
   scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
 ```
 
@@ -543,7 +521,6 @@ prom <- eph %>%
 ggplot(graf, aes(x=ANO4, y=hacinamiento_crit)) +
   geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
   geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
-  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
   labs(title = "Evolución de las viviendas con hacinamiento crítico según clase social",
        subtitle = "Argentina urbana. 2004-2024",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
@@ -558,7 +535,9 @@ ggplot(graf, aes(x=ANO4, y=hacinamiento_crit)) +
         legend.key.size = unit(1.7, 'lines')) +
   scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
   scale_y_continuous(limits = c(0,22), breaks = seq(0, 22, 2)) +
-  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1)) +
+  gghighlight(max(hacinamiento_crit) > 12) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black")
 ```
 
 ## 
@@ -581,7 +560,6 @@ prom <- eph %>%
 ggplot(graf, aes(x=ANO4, y=calmat)) +
   geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
   geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
-  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
   labs(title = "Evolución de los hogares en viviendas con calidad constructiva satisfactoria \nsegún clase social",
        subtitle = "Argentina urbana. 2004-2024",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
@@ -595,7 +573,9 @@ ggplot(graf, aes(x=ANO4, y=calmat)) +
         legend.text = element_text(size = 10)) +
   scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
   scale_y_continuous(limits = c(60,100), breaks = seq(60, 100, 5)) +
-  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1)) +
+  gghighlight(min(calmat) < 70) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black")
 ```
 
 ## 
@@ -619,8 +599,7 @@ prom <- eph %>%
 ggplot(graf, aes(x=ANO4, y=incalserv)) +
   geom_line(aes(group=cobhe_f, color=cobhe_f), linetype = 1, size = .8, alpha = .6) +
   geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
-  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black") +
-  labs(title = "Evolución de los hogares en viviendas con calidad de los servicios sanitarios satisfactoria \nsegún clase social",
+  labs(title = "Evolución de los hogares en viviendas con calidad de los servicios sanitarios \nsatisfactoria según clase social",
        subtitle = "Argentina urbana. 2004-2024",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
        color = "Clase social") +
@@ -633,7 +612,10 @@ ggplot(graf, aes(x=ANO4, y=incalserv)) +
         legend.text = element_text(size = 10)) +
   scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
   scale_y_continuous(limits = c(30,100), breaks = seq(30, 100, 5)) +
-  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1)) +
+  gghighlight(min(incalserv) < 50) +
+  geom_line(data = prom, linetype = "dotted", size = 1.2, color = "black")
+  
 ```
 
 # 4. Educación {background-color="#00589b"}
@@ -737,7 +719,7 @@ ggplot(graf, aes(x=ANO4, y=ITF)) +
   geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
   geom_line(data = prom, linetype = "dotted", linewidth = .9, color = "black") +
   labs(title = "Evolución de los ingresos totales familiares promedio según clase social",
-       subtitle = "Argentina urbana. 2004-2024 (En dólares PPA corrientes)",
+       subtitle = "Argentina urbana. 2004-2023 (En dólares PPA corrientes)",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
        color = "Clase social") +
   theme(axis.title.x = element_blank(),
@@ -749,7 +731,7 @@ ggplot(graf, aes(x=ANO4, y=ITF)) +
         legend.text = element_text(size = 10)) +
   scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
   scale_y_continuous(limits = c(0,6500), breaks = seq(0, 6500, 500)) +
-  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+  scale_x_continuous(limits = c(2004, 2023), breaks = seq(2004, 2023, 1))
 
 ```
 
@@ -878,7 +860,7 @@ ggplot(graf, aes(x=Año, y=theil, colour = tipo)) +
         plot.subtitle = element_text(size = 16),
         legend.title = element_text(size = 10, face = "bold"),
         legend.text = element_text(size = 10)) +
-  scale_color_d3(labels = c("Laboral", "Total")) +
+  scale_color_d3(labels = c("Theil Laboral", "Theil Total")) +
   scale_y_continuous(limits = c(.2,.5), breaks = seq(.2, .5, .05)) +
   scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
 
@@ -900,7 +882,7 @@ ggplot(graf, aes(x=Año, y=porcentaje, colour = tipo)) +
   geom_line(linetype = 1, size = .8) +
   geom_point(size = 1.8) +
   labs(title = "Descomposición del coeficiente de Theil. Componente inter-clases (Hogares)",
-       subtitle = "Argentina urbana. 2003-2022 (en porcentajes)",
+       subtitle = "Argentina urbana. 2003-2024 (en porcentajes)",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
        color = "Tipo") +
   theme(axis.title.x = element_blank(),
@@ -1163,7 +1145,7 @@ graf %>%
 
 -   Entre 2003-2015, los ingresos reales aumentaron para todas las clases socio-ocupacionales, con especial énfasis en las manuales y cuenta propia no calificada.
 
--   :arrow_up: y :arrow_down: de la desigualdad entre períodos.
+-   :arrow_up: de la desigualdad intra clase desde 2022.
 :::
 :::
 
