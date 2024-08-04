@@ -268,14 +268,13 @@ options(OutDec= ",")
 ::: incremental
 -   Analizar los cambios en las clases socio-ocupacionales de la Argentina en el período 2004-2024.
 -   Continuar la tradición de estudios de análisis estructural de largo plazo.
--   Mirada sobre la estructura de clases socio-ocupacionales.
 -   Dimensiones analizadas de las **condiciones de vida**: [estructura demográfica, vivienda y el hábitat, educación, ingresos, gastos de consumo en los hogares]{style="color:#00589b"}
 :::
 :::
 
 ::: {.column width="35%"}
 ::: fragment
-::: {.absolute top="25%"}
+::: {.absolute top="17%"}
 ::: {.callout-tip title="Documento de consulta" icon="false"}
 Chávez Molina, Eduardo y Rodríguez de la Fuente, José Javier (2023). *La estructura social de la Argentina en las últimas dos décadas: una mirada desde la heterogeneidad estructural*. Documentos de Proyectos. Santiago de Chile: CEPAL.
 :::
@@ -290,7 +289,7 @@ Chávez Molina, Eduardo y Rodríguez de la Fuente, José Javier (2023). *La estr
 -   Enfoque basado en la esfera económica-laboral.
 -   Enfoque sociológico: asociación entre la pertenencia a una clase y las condiciones de vida es probabilística y no determinista.
 -   Necesidad de un enfoque que pueda ser operacionalizado y aplicable a la realidad argentina.
--   Clasificador Ocupacional basado en la Heterogeneidad Estructural (COBHE)
+-   **Clasificador Ocupacional basado en la Heterogeneidad Estructural** (COBHE)
     -   Considera a las relaciones jerárquicas, ocupacionales y de calificación.
     -   Efecto de la heterogeneidad productiva en las relaciones laborales.
 :::
@@ -311,7 +310,7 @@ Chávez Molina, Eduardo y Rodríguez de la Fuente, José Javier (2023). *La estr
 
 ## 
 
-```{r}
+```{r estructura de clase}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -350,7 +349,7 @@ eph %>%
 
 ##  {.center}
 
-```{r}
+```{r clase por genero}
 eph %>% 
   filter(CH06 >= 18 & !is.na(cobhe)) %>% 
   group_by(ANO4, cobhe_f, sexo) %>% 
@@ -375,9 +374,9 @@ eph %>%
     palette = "PuBu") 
 ```
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 6
@@ -412,9 +411,9 @@ ggplot(graf, aes(x=fct_rev(cobhe_f), y=edad, group=1)) +
 
 ```
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 6
@@ -452,9 +451,9 @@ ggplot() +
   facet_wrap(~cobhe_f, nrow = 1, labeller = labeller(cobhe_f = label_wrap_gen(15)))
 ```
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r include=FALSE}
 #| fig-width: 10
 #| fig-height: 7
 #| fig-align: center
@@ -497,9 +496,9 @@ ggplot(graf, aes(x=ANO4, y=miembros)) +
 
 # 3. Vivienda y hábitat {background-color="#00589b"}
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r hacinamiento, include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -542,7 +541,7 @@ ggplot(graf, aes(x=ANO4, y=hacinamiento_crit)) +
 
 ## 
 
-```{r}
+```{r calmat}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -580,7 +579,7 @@ ggplot(graf, aes(x=ANO4, y=calmat)) +
 
 ## 
 
-```{r}
+```{r incalserv}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -622,7 +621,7 @@ ggplot(graf, aes(x=ANO4, y=incalserv)) +
 
 ## 
 
-```{r}
+```{r secundario}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -657,9 +656,9 @@ ggplot(graf, aes(x=ANO4, y=educ_secundaria)) +
   scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
 ```
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r universitario, include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -697,9 +696,9 @@ ggplot(graf, aes(x=ANO4, y=educ_superior)) +
 
 # 5. Desigualdad de ingresos {background-color="#00589b"}
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r ingresos ppa, include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -735,9 +734,9 @@ ggplot(graf, aes(x=ANO4, y=ITF)) +
 
 ```
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r ingresos no laborales, include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -778,7 +777,7 @@ ggplot(graf, aes(x=ANO4, y=no_lab)) +
 
 ## 
 
-```{r}
+```{r theil 1}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -868,7 +867,7 @@ ggplot(graf, aes(x=Año, y=theil, colour = tipo)) +
 
 ## 
 
-```{r}
+```{r theil descomposición}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -899,9 +898,9 @@ ggplot(graf, aes(x=Año, y=porcentaje, colour = tipo)) +
 
 # 6. Gasto de los hogares {background-color="#00589b"}
 
-## 
+<!-- ##  -->
 
-```{r}
+```{r gastos, include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -956,7 +955,7 @@ ggplot(graf, aes(x=anio2, y=porcentaje, fill=tipo)) +
 
 ## 
 
-```{r}
+```{r gastos por clase}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
@@ -1015,7 +1014,7 @@ ggplot(graf, aes(x=cobhe_f, y=porcentaje, fill=tipo)) +
 
 ## 
 
-```{r}
+```{r gastos diferencia}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 7
