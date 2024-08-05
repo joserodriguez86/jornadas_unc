@@ -23,7 +23,7 @@ execute:
 ---
 
 ```{r}
-knitr::opts_chunk$set(cache = TRUE, warning = FALSE, 
+knitr::opts_chunk$set(cache = FALSE, warning = FALSE, 
                       message = FALSE, cache.lazy = FALSE,
                       dpi = 300)
 
