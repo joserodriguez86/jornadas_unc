@@ -22,7 +22,10 @@ execute:
   echo: false
 ---
 
-```{r}
+```{r carga base y librerias}
+
+rm(list = ls())
+
 knitr::opts_chunk$set(cache = FALSE, warning = FALSE, 
                       message = FALSE, cache.lazy = FALSE,
                       dpi = 300)
@@ -35,7 +38,7 @@ eph <- readRDS("bases/eph_0424.RDS")
 load("bases/engho.RData")
 ```
 
-```{r results='hide'}
+```{r variables eph, results='hide'}
 
 # Arreglo variables eph----------------
 eph <- eph %>% 
@@ -197,9 +200,27 @@ argentina <- argentina %>%
                             TRUE ~ NA_real_))
 
 options(OutDec= ",")
+
+#sacar outliers en ingresos
+
+identify_outliers <- function(data) {
+  Q1 <- quantile(data, 0.25)
+  Q3 <- quantile(data, 0.75)
+  IQR <- Q3 - Q1
+  lower_bound <- Q1 - 2 * IQR
+  upper_bound <- Q3 + 3.5 * IQR
+  return(data > upper_bound)
+}
+
+eph_clean <- eph %>%
+  group_by(ANO4) %>%
+  mutate(is_outlier = identify_outliers(ITF)) %>%
+  ungroup() %>%
+  filter(!is_outlier) %>%
+  select(-is_outlier)
 ```
 
-```{r}
+```{r variables engho}
 # Arreglo variables ----------------
 engho0418$anio2 <- factor(engho0418$anio2, labels = c("2004-2005", "2012-2013", "2017-2018"))
 
@@ -376,7 +397,7 @@ eph %>%
 
 <!-- ##  -->
 
-```{r include=FALSE}
+```{r edad, include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 6
@@ -413,7 +434,7 @@ ggplot(graf, aes(x=fct_rev(cobhe_f), y=edad, group=1)) +
 
 <!-- ##  -->
 
-```{r include=FALSE}
+```{r region, include=FALSE}
 #| fig-align: center
 #| fig-width: 10
 #| fig-height: 6
@@ -453,7 +474,7 @@ ggplot() +
 
 <!-- ##  -->
 
-```{r include=FALSE}
+```{r miembros, include=FALSE}
 #| fig-width: 10
 #| fig-height: 7
 #| fig-align: center
@@ -718,7 +739,7 @@ ggplot(graf, aes(x=ANO4, y=ITF)) +
   geom_point(aes(group=cobhe_f, color=cobhe_f), size = 1.8, alpha = .6) +
   geom_line(data = prom, linetype = "dotted", linewidth = .9, color = "black") +
   labs(title = "Evolución de los ingresos totales familiares promedio según clase social",
-       subtitle = "Argentina urbana. 2004-2023 (En dólares PPA corrientes)",
+       subtitle = "Argentina urbana. 2004-2024 (En dólares PPA corrientes)",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
        color = "Clase social") +
   theme(axis.title.x = element_blank(),
@@ -730,7 +751,9 @@ ggplot(graf, aes(x=ANO4, y=ITF)) +
         legend.text = element_text(size = 10)) +
   scale_color_d3(labels = function(x) str_wrap(x, width = 25)) +
   scale_y_continuous(limits = c(0,6500), breaks = seq(0, 6500, 500)) +
-  scale_x_continuous(limits = c(2004, 2023), breaks = seq(2004, 2023, 1))
+  scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
+
+ggsave("ingresos_ppa.png", width = 10, height = 7)
 
 ```
 
@@ -783,14 +806,16 @@ ggplot(graf, aes(x=ANO4, y=no_lab)) +
 #| fig-height: 7
 
 ## Theil general ------------------
-eph <- eph %>%
+eph_clean <- eph_clean %>%
   mutate(ing_lab_bis= ifelse(ing_lab_tot <= 0, 0.000001, ing_lab_tot)) %>% 
   mutate(itf_bis= ifelse(ITF <= 0, 0.000001, ITF))
 
-theil_evol <- eph %>%
+theil_evol <- eph_clean %>%
   filter(dominancia == 1 & !is.na(cobhe) & CH06 >= 18) %>% 
   group_by(ANO4) %>% 
-  summarise(theil_t = dineq::theil.wtd(itf_bis, weights = PONDIH_emp),
+  summarise(gini = dineq::gini.wtd(itf_bis, weights = PONDII_emp),
+            gini_lab = dineq::gini.wtd(ing_lab_bis, weights = PONDII_emp),
+            theil_t = dineq::theil.wtd(itf_bis, weights = PONDIH_emp),
             theil_lab = dineq::theil.wtd(ing_lab_bis, weights = PONDIH_emp),
             diferencia = (theil_lab - theil_t)) %>% 
   rename(Año = ANO4)
@@ -798,8 +823,8 @@ theil_evol <- eph %>%
 #### ITF -----------------
 descomp_theil <- data.frame()
 
-for(i in unique(sort(eph$ANO4))) {
-  select <- eph %>% 
+for(i in unique(sort(eph_clean$ANO4))) {
+  select <- eph_clean %>% 
     filter(ANO4==i & dominancia == 1 & !is.na(cobhe) & CH06 >= 18)
   theil <- IC2::decompGEI(select$itf_bis, select$cobhe_f, 
                           w = select$PONDIH_emp, alpha = 1, ELMO = FALSE)
@@ -817,8 +842,8 @@ descomp_theil[,-1] <- round(prop.table(as.matrix(descomp_theil[-1]), margin = 1)
 #### Ingresos laborales ----------------
 descomp_theil_lab <- data.frame()
 
-for(i in unique(sort(eph$ANO4))) {
-  select <- eph %>% 
+for(i in unique(sort(eph_clean$ANO4))) {
+  select <- eph_clean %>% 
     filter(ANO4==i & dominancia == 1 & !is.na(cobhe) & CH06 >= 18)
   theil_lab <- IC2::decompGEI(select$ing_lab_bis, select$cobhe_f, 
                               w = select$PONDIH_emp, alpha = 1, ELMO = FALSE)
@@ -829,7 +854,7 @@ for(i in unique(sort(eph$ANO4))) {
 colnames(descomp_theil_lab) <- c("intra_lab", "inter_lab")
 
 descomp_theil_lab <- descomp_theil_lab %>% 
-  add_column("Año" = unique(sort(eph$ANO4)), .before = "intra_lab")
+  add_column("Año" = unique(sort(eph_clean$ANO4)), .before = "intra_lab")
 
 descomp_theil_lab[,-1] <- round(prop.table(as.matrix(descomp_theil_lab[-1]), margin = 1)*100, digits=2)
 
@@ -842,16 +867,17 @@ theil_evol <- theil_evol %>%
 
 ###
 graf <- theil_evol %>% 
-  select(1:3) %>% 
+  select(1:5) %>% 
   pivot_longer(!Año, names_to = "tipo", values_to = "theil")  
 
-ggplot(graf, aes(x=Año, y=theil, colour = tipo)) +
-  geom_line(linetype = 1, size = .8) +
+ggplot(graf, aes(x=Año, y=theil, color = tipo, linetype = tipo)) +
+  geom_line(size = .8) +
   geom_point(size = 1.8) +
-  labs(title = "Coeficiente de Theil para el ingreso per cápita familiar laboral y total (Hogares)",
+  labs(title = "Coeficiente de Theil para el ingreso laboral y total (Hogares)",
        subtitle = "Argentina urbana. 2004-2024",
        caption = "Fuente: Elaboración propia en base a EPH-INDEC",
-       color = "Theil") +
+       color = "Theil",
+       linetype = "Theil") +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         axis.text.x = element_text(angle = 45, vjust = 0.5),
@@ -859,11 +885,54 @@ ggplot(graf, aes(x=Año, y=theil, colour = tipo)) +
         plot.subtitle = element_text(size = 16),
         legend.title = element_text(size = 10, face = "bold"),
         legend.text = element_text(size = 10)) +
-  scale_color_d3(labels = c("Theil Laboral", "Theil Total")) +
-  scale_y_continuous(limits = c(.2,.5), breaks = seq(.2, .5, .05)) +
+  scale_color_d3(labels = c("Gini laboral", "Gini total", "Theil Laboral", "Theil Total")) +
+  scale_linetype_manual(values = c("dotted", "dotted", "solid", "solid"),
+                        labels = c("Gini laboral", "Gini total", "Theil Laboral", "Theil Total")) +
+  scale_y_continuous(limits = c(0,.6), breaks = seq(0, .6, .05)) +
   scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
 
 ```
+
+```{r brechas, include=FALSE}
+#totales
+tabla_ingresos <- eph_clean %>%
+  filter(dominancia == 1 & !is.na(cobhe) & CH06 >= 18) %>%
+  group_by(cobhe_f, ANO4) %>% 
+  summarise(ingresos_tot=round(weighted.mean(ITF, PONDII_emp))) %>%
+  spread(ANO4, value = ingresos_tot)
+
+tabla_ingresos <- rbind(tabla_ingresos, round(colMeans(tabla_ingresos[, -1])))
+
+tabla_ingresos[,-1] <-  apply(tabla_ingresos[,-1],2,function(x){round(x/mean(x),
+                                                                    digits = 2)})
+
+tabla_ingresos <- tabla_ingresos %>%
+  pivot_longer(-cobhe_f, names_to = "año", values_to = "brecha_tot") %>% 
+  filter(!is.na(cobhe_f))
+
+ggplot(tabla_ingresos, aes(x=año, y=brecha_tot, colour = cobhe_f, group = cobhe_f)) +
+  geom_line(linetype = 1, size = .8) +
+  geom_point(size = 1.8) +
+  geom_hline(yintercept = 1, linetype = "dotted", size = 1.2) +
+  labs(title = "Brechas de ingresos totales familiares promedio según clase social",
+       subtitle = "Argentina urbana. 2004-2024",
+       caption = "Fuente: Elaboración propia en base a EPH-INDEC",
+       color = "Clase social") +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle = 45, vjust = 0.5),
+        plot.title = element_text(size = 18),
+        plot.subtitle = element_text(size = 16),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10)) +
+  scale_color_d3() +
+  scale_y_continuous(limits = c(0, 2), breaks = seq(0, 2, .1))
+
+ggsave("brechas_ingresos.png", width = 10, height = 7)
+
+```
+
+
 
 ## 
 
@@ -892,7 +961,7 @@ ggplot(graf, aes(x=Año, y=porcentaje, colour = tipo)) +
         legend.title = element_text(size = 10, face = "bold"),
         legend.text = element_text(size = 10)) +
   scale_color_d3(labels = c("Laboral", "Total")) +
-  scale_y_continuous(limits = c(15,30), breaks = seq(15, 30, 1)) +
+  scale_y_continuous(limits = c(10,30), breaks = seq(10, 30, 1)) +
   scale_x_continuous(limits = c(2004, 2024), breaks = seq(2004, 2024, 1))
 ```
 
